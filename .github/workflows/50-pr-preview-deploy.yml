@@ -1,0 +1,67 @@
+name: "50 - PR Preview Deploy"
+
+on:
+  workflow_run:
+    workflows:
+      - "10 - PR CI"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME || 'arn:aws:iam::879381260173:role/github-actions-role' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'online-boutique-eks' }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.pull_requests[0].number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-pr-preview:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl for EKS cluster
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Deploy preview with Helm
+        env:
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          NAMESPACE="pr${PR_NUMBER}"
+          RELEASE_NAME="onlineboutique-pr${PR_NUMBER}"
+
+          kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$NAMESPACE"
+
+          # Retry helm upgrade in case API server is transiently unavailable.
+          for attempt in 1 2 3; do
+            if helm upgrade --install "$RELEASE_NAME" ./helm-chart \
+              --namespace "$NAMESPACE" \
+              --set "images.tag=${IMAGE_TAG}" \
+              --set "frontend.externalService=true" \
+              --wait \
+              --timeout 10m; then
+              exit 0
+            fi
+            echo "Helm deploy attempt ${attempt} failed. Retrying..."
+            sleep 15
+          done
+
+          echo "Helm deploy failed after retries."
+          exit 1

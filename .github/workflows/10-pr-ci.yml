@@ -15,6 +15,11 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
+  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME || 'arn:aws:iam::879381260173:role/github-actions-role' }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || '879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique' }}
+
 # Ensure this workflow only runs for the most recent commit of a pull-request
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -23,6 +28,7 @@ concurrency:
 jobs:
   code-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-dotnet@v5
@@ -30,9 +36,11 @@ jobs:
         DOTNET_INSTALL_DIR: "./.dotnet"
       with:
         dotnet-version: '10.0.x'
+        cache: true
     - uses: actions/setup-go@v6
       with:
         go-version: '1.25'
+        cache: true
     - name: Go Unit Tests
       timeout-minutes: 10
       run: |
@@ -50,6 +58,7 @@ jobs:
   deployment-tests:
     runs-on: ubuntu-latest
     needs: code-tests
+    timeout-minutes: 40
     steps:
     - uses: actions/checkout@v6
       with:
@@ -58,8 +67,8 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        role-to-assume: arn:aws:iam::879381260173:role/github-actions-role
-        aws-region: ap-southeast-1
+        role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+        aws-region: ${{ env.AWS_REGION }}
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
     - name: Detect Changed Services
@@ -73,7 +82,7 @@ jobs:
       if: ${{ steps.changed-services.outputs.services != '' }}
       timeout-minutes: 20
       env:
-        IMAGE_REPO: 879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique
+        IMAGE_REPO: ${{ env.ECR_REPOSITORY }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
         skaffold build \
