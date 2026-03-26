@@ -69,14 +69,7 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
-    - name: Detect Changed Services
-      id: changed-services
-      run: |
-        SERVICES=$(bash .github/scripts/resolve-services.sh "${{ github.event.before }}")
-        echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
-        echo "Detected skaffold modules: ${SERVICES:-<none>}"
     - name: Build and Push with Skaffold
-      if: ${{ steps.changed-services.outputs.services != '' }}
       timeout-minutes: 20
       env:
         IMAGE_REPO: ${{ env.ECR_REPOSITORY }}
@@ -85,8 +78,5 @@ jobs:
         skaffold build \
           --default-repo="${IMAGE_REPO}" \
           --tag="${IMAGE_TAG}" \
-          -m "${{ steps.changed-services.outputs.services }}" \
+          -m app,loadgenerator \
           --push=true
-    - name: Skip build when no service changed
-      if: ${{ steps.changed-services.outputs.services == '' }}
-      run: echo "No service changes in src/* detected. Skipping image build."
