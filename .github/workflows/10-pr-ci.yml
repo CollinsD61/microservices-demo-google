@@ -70,6 +70,11 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
+    - name: Install Skaffold
+      run: |
+        curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+        sudo install skaffold /usr/local/bin/skaffold
+        skaffold version
     - name: Detect Changed Services
       id: changed-services
       run: |
