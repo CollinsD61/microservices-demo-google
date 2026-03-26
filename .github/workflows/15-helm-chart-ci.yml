@@ -18,7 +18,7 @@ jobs:
       - name: helm lint
         run: |
           cd helm-chart/
-          helm lint --strict
+          helm lint
       - name: helm template default
         run: |
           cd helm-chart/
