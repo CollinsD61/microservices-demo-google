@@ -1,0 +1,42 @@
+name: "17 - Kubevious Manifests CI"
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'helm-chart/**'
+      - 'kustomize/**'
+      - '.github/workflows/17-kubevious-manifests-ci.yml'
+  pull_request:
+    paths:
+      - 'helm-chart/**'
+      - 'kustomize/**'
+      - '.github/workflows/17-kubevious-manifests-ci.yml'
+permissions:
+  contents: read
+jobs:
+  kubevious-manifests-ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate kubernetes-manifests
+        id: kubernetes-manifests-validation
+        uses: kubevious/cli@v1.0.64
+        with:
+          manifests: kubernetes-manifests
+          skip_rules: container-latest-image
+
+      - name: Validate helm-chart
+        id: helm-chart-validation
+        uses: kubevious/cli@v1.0.64
+        with:
+          manifests: helm-chart
+
+      - name: Validate kustomize
+        id: kustomize-validation
+        uses: kubevious/cli@v1.0.64
+        with:
+          manifests: kustomize
+          skip_rules: container-latest-image
