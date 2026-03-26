@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: "Clean up deployment"
+name: "60 - Cleanup Preview"
 on:
   pull_request:
     # run on pull requests targeting main
@@ -22,9 +22,9 @@ on:
     paths-ignore:
       - '**/README.md'
       - 'kustomize/**'
-      - '.github/workflows/kustomize-build-ci.yaml'
+      - '.github/workflows/16-kustomize-build-ci.yml'
       - 'terraform/**'
-      - '.github/workflows/terraform-validate-ci.yaml'
+      - '.github/workflows/40-terraform-validate.yml'
 jobs:
   cleanup-namespace:
     runs-on: [self-hosted, is-enabled]

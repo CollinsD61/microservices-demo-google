@@ -29,11 +29,6 @@ opentelemetryCollector:
   # Specifies the project id for the otel collector. If set as "PROJECT_ID" (default value), an initContainer will automatically retrieve the project id value from the metadata server.
   projectId: "PROJECT_ID"
 
-googleCloudOperations:
-  profiler: false
-  tracing: false
-  metrics: false
-
 seccompProfile:
   enable: false
   type: RuntimeDefault
@@ -102,7 +97,7 @@ frontend:
   externalService: true
   cymbalBranding: false
   # One of: local, gcp, aws, azure, onprem, alibaba. When not set, defaults to "local" unless running in GKE, otherwise auto-sets to gcp.
-  platform: local
+  platform: aws
   singleSharedSession: false
   virtualService:
     create: false

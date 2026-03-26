@@ -12,26 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: terraform-validate-ci
+name: "16 - Kustomize Build CI"
 on:
   push:
     branches:
       - main
     paths:
-      - 'terraform/**'
-      - '.github/workflows/terraform-validate-ci.yaml'
+      - 'kustomize/**'
+      - '.github/workflows/16-kustomize-build-ci.yml'
   pull_request:
     paths:
-      - 'terraform/**'
-      - '.github/workflows/terraform-validate-ci.yaml'
+      - 'kustomize/**'
+      - '.github/workflows/16-kustomize-build-ci.yml'
 jobs:
-  terraform-validate-ci:
+  kustomize-build-ci:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
-      - uses: hashicorp/setup-terraform@v4
-      - name: terraform init & validate
+      - name: kustomize build base
         run: |
-          cd terraform/
-          terraform init -backend=false
-          terraform validate
+          cd kustomize/
+          kubectl kustomize .
+      # Build the different combinations of Kustomize components found in kustomize/tests.
+      - name: kustomize build tests
+        run: |
+          cd kustomize/tests
+          KUSTOMIZE_TESTS_SUBFOLDERS=$(ls -d */)
+          for test in $KUSTOMIZE_TESTS_SUBFOLDERS;
+          do
+              echo "## kustomize build for " + $test
+              kustomize build $test
+          done

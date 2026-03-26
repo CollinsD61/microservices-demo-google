@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: kubevious-manifests-ci
+name: "17 - Kubevious Manifests CI"
 on:
   push:
     branches:
@@ -20,12 +20,12 @@ on:
     paths:
       - 'helm-chart/**'
       - 'kustomize/**'
-      - '.github/workflows/kubevious-manifests-ci.yaml'
+      - '.github/workflows/17-kubevious-manifests-ci.yml'
   pull_request:
     paths:
       - 'helm-chart/**'
       - 'kustomize/**'
-      - '.github/workflows/kubevious-manifests-ci.yaml'
+      - '.github/workflows/17-kubevious-manifests-ci.yml'
 permissions:
   contents: read
 jobs:

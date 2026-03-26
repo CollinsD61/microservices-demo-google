@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: helm-chart-ci
+name: "15 - Helm Chart CI"
 on:
   push:
     branches:
       - main
     paths:
       - 'helm-chart/**'
-      - '.github/workflows/helm-chart-ci.yaml'
+      - '.github/workflows/15-helm-chart-ci.yml'
   pull_request:
     paths:
       - 'helm-chart/**'
-      - '.github/workflows/helm-chart-ci.yaml'
+      - '.github/workflows/15-helm-chart-ci.yml'
 jobs:
   helm-chart-ci:
     runs-on: ubuntu-24.04
