@@ -5,13 +5,11 @@ on:
       - main
     paths-ignore:
       - '**/README.md'
-      - 'kustomize/**'
-      - '.github/workflows/16-kustomize-build-ci.yml'
       - 'terraform/**'
-      - 'terraform-aws/**'
       - '.github/workflows/40-terraform-validate.yml'
       - 'helm-chart/**'
       - '.github/workflows/15-helm-chart-ci.yml'
+      - '.github/workflows/17-kubevious-manifests-ci.yml'
 
 permissions:
   contents: read
