@@ -3,6 +3,10 @@ images:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "21c9a397785a9b65673e1c85fb5f58bce7a6a152"
 
+googleCloudOperations:
+  tracing: false
+  profiler: false
+
 serviceAccounts:
   # Specifies whether service accounts should be created.
   create: true
