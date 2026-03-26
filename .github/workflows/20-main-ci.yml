@@ -20,17 +20,17 @@ permissions:
   id-token: write
 jobs:
   code-tests:
-    runs-on: [self-hosted, is-enabled]
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-dotnet@v5
       env:
         DOTNET_INSTALL_DIR: "./.dotnet"
       with:
-        dotnet-version: '10.0'
+        dotnet-version: '9.0'
     - uses: actions/setup-go@v6
       with:
-        go-version: '1.25'
+        go-version: '1.23'
     - name: Go Unit Tests
       timeout-minutes: 10
       run: |
@@ -45,10 +45,12 @@ jobs:
       run: |
         dotnet test src/cartservice/
   deployment-tests:
-    runs-on: [self-hosted, is-enabled]
+    runs-on: ubuntu-latest
     needs: code-tests
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -56,10 +58,24 @@ jobs:
         aws-region: ap-southeast-1
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
-    - name: Build and Push to ECR
+    - name: Detect Changed Services
+      id: changed-services
+      run: |
+        SERVICES=$(bash .github/scripts/resolve-services.sh "${{ github.event.before }}")
+        echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+        echo "Detected skaffold modules: ${SERVICES:-<none>}"
+    - name: Build and Push with Skaffold
+      if: ${{ steps.changed-services.outputs.services != '' }}
       timeout-minutes: 20
+      env:
+        IMAGE_REPO: 879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique
+        IMAGE_TAG: ${{ github.sha }}
       run: |
         skaffold build \
-          --default-repo=879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique \
-          --tag=${{ github.sha }} \
+          --default-repo="${IMAGE_REPO}" \
+          --tag="${IMAGE_TAG}" \
+          -m "${{ steps.changed-services.outputs.services }}" \
           --push=true
+    - name: Skip build when no service changed
+      if: ${{ steps.changed-services.outputs.services == '' }}
+      run: echo "No service changes in src/* detected. Skipping image build."

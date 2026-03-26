@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_ref="${1:-origin/main}"
+base_ref="${1:-}"
+if [[ -z "$base_ref" || "$base_ref" == "0000000000000000000000000000000000000000" ]]; then
+  base_ref="HEAD~1"
+fi
 
 service_roots=(
   adservice
@@ -27,15 +30,29 @@ for service in "${service_roots[@]}"; do
 done
 
 if [[ ${#changed_services[@]} -eq 0 ]]; then
-  echo "[]"
+  echo ""
   exit 0
 fi
 
-printf '['
-for i in "${!changed_services[@]}"; do
-  printf '"%s"' "${changed_services[$i]}"
-  if [[ "$i" -lt $((${#changed_services[@]} - 1)) ]]; then
-    printf ','
+# Skaffold modules in this repo are config names: app and loadgenerator.
+has_app=false
+has_loadgenerator=false
+
+for service in "${changed_services[@]}"; do
+  if [[ "$service" == "loadgenerator" ]]; then
+    has_loadgenerator=true
+  else
+    has_app=true
   fi
 done
-printf ']\n'
+
+modules=()
+if [[ "$has_app" == true ]]; then
+  modules+=("app")
+fi
+if [[ "$has_loadgenerator" == true ]]; then
+  modules+=("loadgenerator")
+fi
+
+IFS=,
+echo "${modules[*]}"
