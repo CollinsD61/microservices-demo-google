@@ -1,7 +1,7 @@
 images:
   repository: 879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/adservice
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "286bc07008a42b921e426cee1b27b0a3cb11968d"
+  tag: "21c9a397785a9b65673e1c85fb5f58bce7a6a152"
 
 serviceAccounts:
   # Specifies whether service accounts should be created.
