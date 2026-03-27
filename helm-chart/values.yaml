@@ -54,6 +54,7 @@ adService:
 cartService:
   create: true
   name: cartservice
+  replicas: 2
   resources:
     requests:
       cpu: 200m
