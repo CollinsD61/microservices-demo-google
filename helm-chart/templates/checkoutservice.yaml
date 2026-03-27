@@ -21,6 +21,7 @@ metadata:
   labels:
     app: {{ .Values.checkoutService.name }}
 spec:
+  replicas: {{ .Values.checkoutService.replicas | default 1 }}
   selector:
     matchLabels:
       app: {{ .Values.checkoutService.name }}

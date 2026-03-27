@@ -65,6 +65,7 @@ cartService:
 checkoutService:
   create: true
   name: checkoutservice
+  replicas: 2
   resources:
     requests:
       cpu: 100m
