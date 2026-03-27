@@ -16,7 +16,7 @@ permissions:
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
   AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME || 'arn:aws:iam::879381260173:role/github-actions-role' }}
-  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'online-boutique-eks' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'online-boutique-dev' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

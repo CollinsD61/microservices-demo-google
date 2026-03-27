@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: onlineboutique-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CollinsD61/microservices-demo-google.git
+    targetRevision: main
+    path: helm-chart
+    helm:
+      releaseName: onlineboutique-dev
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: images.repository
+          value: 879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: onlineboutique
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true

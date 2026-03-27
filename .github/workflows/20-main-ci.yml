@@ -12,6 +12,7 @@ on:
       - 'helm-chart/**'
       - '.github/workflows/15-helm-chart-ci.yml'
       - '.github/workflows/17-kubevious-manifests-ci.yml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +26,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-1' }}
   AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME || 'arn:aws:iam::879381260173:role/github-actions-role' }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || '879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique' }}
+  SKAFFOLD_MODULES: app,loadgenerator
 
 jobs:
   code-tests:
@@ -79,9 +81,10 @@ jobs:
       env:
         IMAGE_REPO: ${{ env.ECR_REPOSITORY }}
         IMAGE_TAG: ${{ github.sha }}
+        MODULES: ${{ env.SKAFFOLD_MODULES }}
       run: |
         skaffold build \
           --default-repo="${IMAGE_REPO}" \
           --tag="${IMAGE_TAG}" \
-          -m app,loadgenerator \
+          -m "${MODULES}" \
           --push=true

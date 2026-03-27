@@ -31,4 +31,4 @@ Set these repository variables in GitHub to avoid hardcoding infrastructure valu
 - `AWS_REGION` (example: `ap-southeast-1`)
 - `AWS_ROLE_TO_ASSUME` (OIDC role ARN for Actions)
 - `ECR_REPOSITORY` (example: `879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique`)
-- `EKS_CLUSTER_NAME` (example: `online-boutique-eks`)
+- `EKS_CLUSTER_NAME` (example: `online-boutique-dev`)
