@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
   }
 
   # Backend configuration - uncomment và cấu hình cho môi trường thực
@@ -90,4 +94,37 @@ module "eks" {
   enable_ssm           = false
 
   tags = var.tags
+}
+
+# =============================================================================
+# HELM PROVIDER & ARGOCD
+# =============================================================================
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      args        = ["eks", "get-token", "--cluster-name", local.cluster_name]
+      command     = "aws"
+    }
+  }
+}
+
+module "argocd" {
+  source = "../../modules/argocd"
+
+  # Prod env specific configurations
+  chart_version = "5.51.6"
+  namespace     = "argocd"
+  service_type  = "ClusterIP" # Prod nên để ClusterIP và phơi qua Ingress/ALB an toàn hơn
+  
+  cluster_name  = local.cluster_name
+  aws_region    = var.aws_region
+
+  depends_on = [
+    module.eks,
+    module.eks.node_group_arn # Wait cho node group sẵn sàng
+  ]
 }

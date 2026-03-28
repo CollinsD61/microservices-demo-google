@@ -21,6 +21,7 @@ metadata:
   labels:
     app: {{ .Values.paymentService.name }}
 spec:
+  replicas: {{ .Values.paymentService.replicas | default 1 }}
   selector:
     matchLabels:
       app: {{ .Values.paymentService.name }}
