@@ -1,7 +1,7 @@
 images:
   repository: 879381260173.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "d1e0cfc80e02f38721de93792dc0f22ed7b063b4"
+  tag: "476cc2f200c7a6e3ef2b3b3dbe3ca67a46aa6423"
 
 googleCloudOperations:
   tracing: false
