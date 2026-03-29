@@ -53,3 +53,12 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API Token cho ExternalDNS"
+  type        = string
+  sensitive   = true
+  # Khuyen nghi luu token trong terraform.tfvars (file nay da duoc .gitignore bo qua)
+  # Hoac dat qua bien moi truong TF_VAR_cloudflare_api_token
+  # Neu da co terraform.tfvars thi apply/destroy khong can truyen -var
+}

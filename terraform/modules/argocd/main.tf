@@ -23,6 +23,8 @@ resource "helm_release" "argocd" {
   namespace        = var.namespace
   create_namespace = true
   version          = var.chart_version
+  wait             = false
+  timeout          = 120
 
   set {
     name  = "server.service.type"
@@ -34,26 +36,31 @@ resource "helm_release" "argocd" {
 }
 
 # =============================================================================
-# CLEANUP PROVISIONER (Xử lý lỗi chặn xóa Destroy EKS)
+# CLEANUP PROVISIONER - Xóa ArgoCD Application objects trước khi helm uninstall
+# NOTE: Cleanup ALB/SG/ENI được xử lý bởi null_resource.pre_destroy_cleanup
+#       ở cấp environment (environments/dev/main.tf) — chạy trước resource này.
 # =============================================================================
 
 resource "null_resource" "cleanup_argocd_apps" {
-  # Chạy script shell dọn dẹp trước khi Helm release bị xóa
   provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-      echo "Update kubeconfig to connect to EKS cluster for cleanup..."
-      aws eks update-kubeconfig --region ${self.triggers.region} --name ${self.triggers.cluster_name} || true
-      
-      echo "Deleting all ArgoCD applications to cascade delete AWS resources (LoadBalancers, Volumes, Ingresses)..."
-      kubectl delete applications.argoproj.io --all -n argocd --ignore-not-found || true
-      
-      echo "Force deleting stuck ingresses and loadbalancer services..."
-      kubectl delete ingress --all --all-namespaces --ignore-not-found || true
-      kubectl delete svc --all --all-namespaces -l "kubernetes.io/service.name" || true
-      
-      echo "Waiting 15 seconds for AWS to detach and delete Network Interfaces / LoadBalancers..."
-      sleep 15
+    when        = destroy
+    interpreter = ["powershell", "-Command"]
+    command     = <<EOT
+      Write-Host "[ArgoCD Cleanup] Connecting to EKS cluster..." -ForegroundColor Cyan
+      aws eks update-kubeconfig --region ${self.triggers.region} --name ${self.triggers.cluster_name} 2>&1 | Out-Null
+
+      if ($LASTEXITCODE -eq 0) {
+        Write-Host "[ArgoCD Cleanup] Deleting ArgoCD Application objects (prevent re-creation during helm uninstall)..." -ForegroundColor Cyan
+        kubectl patch applications.argoproj.io --all -n argocd --type=merge -p '{"metadata":{"finalizers":[]}}' --request-timeout=15s 2>&1 | Out-Null
+        kubectl patch appprojects.argoproj.io --all -n argocd --type=merge -p '{"metadata":{"finalizers":[]}}' --request-timeout=15s 2>&1 | Out-Null
+        kubectl delete applications.argoproj.io --all -n argocd --ignore-not-found --wait=false --request-timeout=15s 2>&1 | Out-Null
+        kubectl delete appprojects.argoproj.io --all -n argocd --ignore-not-found --wait=false --request-timeout=15s 2>&1 | Out-Null
+        Write-Host "[ArgoCD Cleanup] Deleting ArgoCD CRDs to keep cluster fully clean..." -ForegroundColor Cyan
+        kubectl delete crd applications.argoproj.io applicationsets.argoproj.io appprojects.argoproj.io --ignore-not-found --wait=false --request-timeout=15s 2>&1 | Out-Null
+        Write-Host "[ArgoCD Cleanup] Done." -ForegroundColor Green
+      } else {
+        Write-Warning "[ArgoCD Cleanup] Could not connect to EKS — skipping."
+      }
     EOT
   }
 

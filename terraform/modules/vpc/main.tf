@@ -3,12 +3,12 @@
 # =============================================================================
 
 locals {
-  # Tên cho các resources
   name_prefix = "${var.project_name}-${var.environment}"
-
-  # Tính toán số AZs thực tế sử dụng
-  azs_count = length(var.availability_zones)
+  azs_count   = length(var.availability_zones)
 }
+
+data "aws_region" "current" {}
+
 
 # =============================================================================
 # VPC
@@ -156,4 +156,89 @@ resource "aws_route_table_association" "private" {
 
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[var.single_nat_gateway ? 0 : count.index].id
+}
+
+# =============================================================================
+# PRE-DELETE CLEANUP
+# null_resource này phụ thuộc vào subnet/IGW/NAT
+# => Terraform destroy nó TRƯÉC khi xóa subnet/IGW
+# => cleanup chạy đúng lúc: sau khi EKS góc đã xóa, trước khi VPC resource bị xóa
+# =============================================================================
+
+resource "null_resource" "pre_vpc_delete_cleanup" {
+  triggers = {
+    vpc_id = aws_vpc.main.id
+    region = data.aws_region.current.name
+  }
+
+  provisioner "local-exec" {
+    when        = destroy
+    interpreter = ["powershell", "-Command"]
+    command     = <<EOT
+      $vpcId  = "${self.triggers.vpc_id}"
+      $region = "${self.triggers.region}"
+
+      Write-Host "[VPC Cleanup] Starting pre-delete cleanup for VPC $vpcId..." -ForegroundColor Yellow
+
+      # --- [1/3] Tim va xoa ALB/NLB con lai trong VPC ---
+      Write-Host "[VPC Cleanup][1/3] Checking for orphaned Load Balancers..."
+      $albsRaw = aws elbv2 describe-load-balancers --region $region --output json 2>&1
+      if ($LASTEXITCODE -eq 0) {
+        $albs = ($albsRaw | ConvertFrom-Json).LoadBalancers | Where-Object { $_.VpcId -eq $vpcId }
+        if ($albs.Count -gt 0) {
+          foreach ($alb in $albs) {
+            Write-Host "[VPC Cleanup]  -> Deleting ALB: $($alb.LoadBalancerName)"
+            aws elbv2 delete-load-balancer --load-balancer-arn $alb.LoadBalancerArn --region $region 2>&1 | Out-Null
+          }
+          Write-Host "[VPC Cleanup]  Waiting 90s for AWS to release ALB ENIs..."
+          Start-Sleep -Seconds 90
+        } else {
+          Write-Host "[VPC Cleanup]  No orphaned ALBs found."
+        }
+      }
+
+      # --- [2/3] Xoa orphan SGs (k8s-*) ---
+      Write-Host "[VPC Cleanup][2/3] Checking for orphaned Security Groups (k8s-*)..."
+      $sgsRaw = aws ec2 describe-security-groups `
+        --filters "Name=vpc-id,Values=$vpcId" "Name=group-name,Values=k8s-*" `
+        --query "SecurityGroups[].{ID:GroupId,Name:GroupName}" `
+        --output json --region $region 2>&1
+      if ($LASTEXITCODE -eq 0) {
+        $sgs = $sgsRaw | ConvertFrom-Json
+        foreach ($sg in $sgs) {
+          Write-Host "[VPC Cleanup]  -> Deleting SG: $($sg.ID) ($($sg.Name))"
+          aws ec2 delete-security-group --group-id $sg.ID --region $region 2>&1 | Out-Null
+        }
+        if ($sgs.Count -eq 0) { Write-Host "[VPC Cleanup]  No orphaned SGs found." }
+      }
+
+      # --- [3/3] Kiem tra ENI con lai ---
+      Write-Host "[VPC Cleanup][3/3] Checking for remaining ENIs..."
+      $enis = aws ec2 describe-network-interfaces `
+        --filters "Name=vpc-id,Values=$vpcId" `
+        --query "NetworkInterfaces[?Status!='available'].NetworkInterfaceId" `
+        --output json --region $region 2>&1 | ConvertFrom-Json
+      if ($enis.Count -gt 0) {
+        Write-Host "[VPC Cleanup]  Found $($enis.Count) non-available ENI(s). Waiting 30s..."
+        Start-Sleep -Seconds 30
+      } else {
+        Write-Host "[VPC Cleanup]  All ENIs available/cleared."
+      }
+
+      Write-Host "[VPC Cleanup] Done! VPC resources can now be safely deleted." -ForegroundColor Green
+    EOT
+  }
+
+  # Depends on ALL VPC sub-resources => destroyed BEFORE them (guaranteed ordering)
+  depends_on = [
+    aws_subnet.public,
+    aws_subnet.private,
+    aws_internet_gateway.main,
+    aws_nat_gateway.main,
+    aws_eip.nat,
+    aws_route_table.public,
+    aws_route_table.private,
+    aws_route_table_association.public,
+    aws_route_table_association.private,
+  ]
 }
